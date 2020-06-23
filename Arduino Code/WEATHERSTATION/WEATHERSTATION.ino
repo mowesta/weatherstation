@@ -14,10 +14,10 @@
 #include <WiFiClient.h>
 #include <EEPROM.h>
 #include <Wire.h>
-#include <HttpClient.h>
+#include <HTTPClient.h>
 #include "Adafruit_Sensor.h"
 #include "Adafruit_BME280.h"
-#include <ArduinoJson.h>
+#include "ArduinoJson.h"
 
 #define VERSION 1
 //#define MODE_TEST_SENSORS 1
