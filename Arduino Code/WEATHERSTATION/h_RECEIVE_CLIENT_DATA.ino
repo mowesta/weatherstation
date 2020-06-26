@@ -8,38 +8,49 @@
  */
 void handle_client_connection(WiFiClient *client) {
   Serial.println("New Client connected.");           // print a message out the serial port
-
-  if (client->connected()) {
-    String data = "";
-    while (client->available()) { //Loop while there is data to read
-      data += client->readStringUntil('\r');  //Read data until a carriage return
-    }
-    if (data.length() > 0) {
-      if(handle_client_data_json(data)) {  //Process the read data
-        client->println("Success!");   //Notify client
-
-        client->stop();
-        Serial.println("Client Disconnected.");
-        WiFi.softAPdisconnect(true);  //Shut down AP
-        timerAlarmDisable(setupModeOnLedTimer);
-        turn_led_off();
-        turn_off_setup();
-        connect_to_wifi();  //Connect to WiFi using the newly entered credentials
-      } else {
-        client->println("Error!");     //Notify client
-
-        //Also visually notify the client that an error occured
-        timerAlarmDisable(setupModeOnLedTimer);
-        turn_led_off();
-        unsigned long tempTime;
-        for (int i=0; i < 6; i++) {
-          tempTime = millis();
-          error_indication_led_on();
-          while(millis() - tempTime < 300);
-        }
-        timerAlarmEnable(setupModeOnLedTimer);
+  String data = "";
+  bool didRead = true;
+  client->setTimeout(10); // increase timeout to 10 seconds so that user can copy-paste data into netcat
+  while (client->connected() && didRead) {        // wait at most 10 seconds or until empty line
+    String chunk = client->readStringUntil('\n'); // read next line
+    didRead = chunk.length() > 0;                 // if line is empty, break immediately
+    data += chunk;
+  }
+  if (data.length() > 0) {
+    if(handle_client_data_json(data)) {  //Process the read data
+      client->println("Success\n");   // Notify client
+      client->flush();
+      // Wait for client to close connection, since we will
+      // be disabling the accesspoint directly afterwards
+      while (client->connected());
+      client->stop();
+      Serial.println("Success, client disconnected.");
+      WiFi.softAPdisconnect(true);  //Shut down AP
+      timerAlarmDisable(setupModeOnLedTimer);
+      turn_led_off();
+      turn_off_setup();
+      connect_to_wifi();  //Connect to WiFi using the newly entered credentials
+    } else {
+      client->println("Error\n");     //Notify client
+      client->flush();
+      client->stop();
+      Serial.println("Error, client disconnected.");
+      //Also visually notify the client that an error occured
+      timerAlarmDisable(setupModeOnLedTimer);
+      turn_led_off();
+      unsigned long tempTime;
+      for (int i=0; i < 6; i++) {
+        tempTime = millis();
+        error_indication_led_on();
+        while(millis() - tempTime < 300);
       }
+      timerAlarmEnable(setupModeOnLedTimer);
     }
+  } else {
+    client->println("Timeout\n");     //Notify client
+    client->flush();
+    client->stop();
+    Serial.println("Timeout, client Disconnected.");
   }
 }
 
@@ -50,10 +61,7 @@ void handle_client_connection(WiFiClient *client) {
  * @param  data  the data received from the client
  */
 bool handle_client_data_json(String data) {
-
   StaticJsonDocument<JSON_BUFFER_SIZE> doc;  //Memory pool
-  data.replace("“", "'");
-  data.replace("”", "'");
   DeserializationError error = deserializeJson(doc, data);
   if (error) {
     Serial.print("DeserializeJson() failed with code ");
@@ -63,13 +71,13 @@ bool handle_client_data_json(String data) {
 
   const char * ssid = doc["ssid"];                //Get ssid
   const char * pw = doc["password"];              //Get pw
-  const char * id = doc["device"]["id"];          //Get id
-  const char * token = doc["device"]["token"];    //Get token
-  const char * longi = doc["device"]["longitude"];//Get longitude
-  const char * lati = doc["device"]["latitude"];  //Get latitude
+  const char * id = doc["id"];                    //Get id
+  const char * token = doc["token"];              //Get token
+  const char * longi = doc["longitude"];          //Get longitude
+  const char * lati = doc["latitude"];            //Get latitude
 
   Serial.println("\n----- NEW DATA FROM CLIENT ----");
-  Serial.println("SSID: " + String(ssid));
+  Serial.println("SSID: " + String(ssid)); 
   Serial.println("PW: " + String(pw));
   Serial.println("ID: " + String(id));
   Serial.println("Token: " + String(token));

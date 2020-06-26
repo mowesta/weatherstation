@@ -71,7 +71,7 @@ void read_environmental_sensor(int sensorId) {
   short max = 5;
   for (short i = 0; i < max; ++i) {
     measurements[sensorId][1] += bme[sensorId].readTemperature();
-    measurements[sensorId][2] += bme[sensorId].readHumidity();
+    measurements[sensorId][2] += bme[sensorId].readHumidity() * 100.0f;
     measurements[sensorId][3] += bme[sensorId].readPressure();
     measurements[sensorId][4] += bme[sensorId].readAltitude(SEALEVELPRESSURE_HPA);
   }
@@ -87,7 +87,7 @@ void read_environmental_sensor(int sensorId) {
   Serial.println(" *C");
 
   Serial.print("Humidity = ");
-  Serial.print(measurements[sensorId][2] * 100.0f);
+  Serial.print(measurements[sensorId][2]);
   Serial.println(" %");
 
   Serial.print("Pressure = ");
